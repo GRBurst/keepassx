@@ -17,6 +17,7 @@
 
 #include <QCommandLineParser>
 #include <QFile>
+#include <QTextStream>
 
 #include "config-keepassx.h"
 #include "core/Config.h"
@@ -44,7 +45,7 @@ int main(int argc, char** argv)
 
     if (!Crypto::init()) {
         QString error = QCoreApplication::translate("Main",
-                                                    "Fatal error while testing the cryptographic functions.");
+            "Fatal error while testing the cryptographic functions.");
         error.append("\n");
         error.append(Crypto::errorString());
         MessageBox::critical(nullptr, QCoreApplication::translate("Main", "KeePassX - Error"), error);
@@ -56,15 +57,19 @@ int main(int argc, char** argv)
     parser.addPositionalArgument("filename", QCoreApplication::translate("main", "filename of the password database to open (*.kdbx)"));
 
     QCommandLineOption configOption("config",
-                                    QCoreApplication::translate("main", "path to a custom config file"),
-                                    "config");
+        QCoreApplication::translate("main", "path to a custom config file"),
+        "config");
+    QCommandLineOption passwordOption("password",
+        QCoreApplication::translate("main", "password of the database (use - for reading from stdin)"),
+        "password");
     QCommandLineOption keyfileOption("keyfile",
-                                     QCoreApplication::translate("main", "key file of the database"),
-                                     "keyfile");
+        QCoreApplication::translate("main", "key file of the database"),
+        "keyfile");
 
     parser.addHelpOption();
     parser.addVersionOption();
     parser.addOption(configOption);
+    parser.addOption(passwordOption);
     parser.addOption(keyfileOption);
 
     parser.process(app);
@@ -90,7 +95,12 @@ int main(int argc, char** argv)
     if (!args.isEmpty()) {
         QString filename = args[0];
         if (!filename.isEmpty() && QFile::exists(filename)) {
-            mainWindow.openDatabase(filename, QString(), parser.value(keyfileOption));
+            if (parser.value(passwordOption) == "-") {
+                QTextStream qtin(stdin);
+                QString line = qtin.readLine();
+                mainWindow.openDatabase(filename, line, parser.value(keyfileOption));
+            } else
+                mainWindow.openDatabase(filename, parser.value(passwordOption), parser.value(keyfileOption));
         }
     }
 
